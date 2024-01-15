@@ -6,6 +6,10 @@
 
 ## Install dependencies
 
+## Run docker
+
+`docker compose up -d`
+
 ## Run proyect
 
 # Deploy

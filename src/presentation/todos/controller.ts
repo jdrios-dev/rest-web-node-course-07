@@ -1,62 +1,62 @@
 import { Request, Response } from "express";
-
-const todos = [
-	{
-		id: 1,
-		text: "buy bread",
-		createdAt: new Date(),
-	},
-	{
-		id: 2,
-		text: "buy Coconut oil",
-		createdAt: new Date(),
-	},
-	{
-		id: 3,
-		text: "buy quinoa",
-		createdAt: new Date(),
-	},
-];
-
+import { prisma } from "../../data/postgres";
+import { CreateTodoDto, UpdateTodoDto } from "../../domain/dtos";
 export class TodosController {
 	constructor() {}
 
-	public getTodos = (req: Request, res: Response) => {
+	public getTodos = async (req: Request, res: Response) => {
+		const todos = await prisma.todo.findMany();
 		return res.json(todos);
 	};
 
-	public getTodo = (req: Request, res: Response) => {
+	public getTodo = async (req: Request, res: Response) => {
 		const id = parseInt(req.params.id, 10);
 		if (isNaN(id))
 			res.status(400).json({ error: `Id is not valid: ${req.params.id}` });
 
-		const todo = todos.find((item) => item.id === id);
+		const todo = await prisma.todo.findUnique({
+			where: { id },
+		});
 
 		todo
 			? res.json(todo)
 			: res.status(404).json({ error: `TODO with id: ${id} does not exist` });
 	};
 
-	public createTodo = (req: Request, res: Response) => {
-		const { text, id } = req.body;
-		if (!text) return res.status(400).json({ error: "Text is required" });
-		if (isNaN(+id))
-			return res.status(400).json({ error: "Id must be a number" });
-		const newTodo = {
-			text,
-			id: parseInt(id, 10),
-			createdAt: new Date(),
-		};
-		todos.push(newTodo);
+	public createTodo = async (req: Request, res: Response) => {
+		const [error, createTodoDto] = CreateTodoDto.create(req.body);
 
-		return res.json({ message: "Message created", body: newTodo });
+		if (error) {
+			return res.status(400).json({ error });
+		}
+
+		const todo = await prisma.todo.create({
+			data: createTodoDto!,
+		});
+
+		return res.json(todo);
 	};
 
-	public updateTodo = (req: Request, res: Response) => {
-		console.log("Todo updated", req.body, req.params.id);
+	public updateTodo = async (req: Request, res: Response) => {
+		const id = +req.params.id;
+		const [error, updateTodoDto] = UpdateTodoDto.update({ ...req.body, id });
+
+		if (error) {
+			return res.status(400).json({ error });
+		}
+
+		const resp = await prisma.todo.update({
+			where: { id },
+			data: updateTodoDto!.values,
+		});
+		return res.json(resp);
 	};
 
-	public deleteTodo = (req: Request, res: Response) => {
-		console.log("Todo deleted", req.body, req.params.id);
+	public deleteTodo = async (req: Request, res: Response) => {
+		const id = +req.params.id;
+		const resp = await prisma.todo.delete({
+			where: { id },
+		});
+		return res.json(resp);
 	};
 }
